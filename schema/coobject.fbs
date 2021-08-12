@@ -1,0 +1,9 @@
+
+enum CoType:byte { CLSID, IID, TYPELIB, APPID, CATID }
+
+table FBCoObject {
+    type: CoType;
+    guid: string;
+}
+
+root_type FBCoObject;

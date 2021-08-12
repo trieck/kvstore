@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31515.178
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kvstore", "kvstore.vcxproj", "{AC6FEF91-E402-42EE-96FA-5A650AB24475}"
+	ProjectSection(ProjectDependencies) = postProject
+		{A6FF89CC-9F02-45BE-AE1D-249804D3FA7E} = {A6FF89CC-9F02-45BE-AE1D-249804D3FA7E}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kvstorelib", "kvstorelib\kvstorelib.vcxproj", "{A6FF89CC-9F02-45BE-AE1D-249804D3FA7E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AC6FEF91-E402-42EE-96FA-5A650AB24475}.Debug|x64.ActiveCfg = Debug|x64
+		{AC6FEF91-E402-42EE-96FA-5A650AB24475}.Debug|x64.Build.0 = Debug|x64
+		{AC6FEF91-E402-42EE-96FA-5A650AB24475}.Release|x64.ActiveCfg = Release|x64
+		{AC6FEF91-E402-42EE-96FA-5A650AB24475}.Release|x64.Build.0 = Release|x64
+		{A6FF89CC-9F02-45BE-AE1D-249804D3FA7E}.Debug|x64.ActiveCfg = Debug|x64
+		{A6FF89CC-9F02-45BE-AE1D-249804D3FA7E}.Debug|x64.Build.0 = Debug|x64
+		{A6FF89CC-9F02-45BE-AE1D-249804D3FA7E}.Release|x64.ActiveCfg = Release|x64
+		{A6FF89CC-9F02-45BE-AE1D-249804D3FA7E}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F12E93C6-B09A-47AD-A19A-62835460A57B}
+	EndGlobalSection
+EndGlobal
