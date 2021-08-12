@@ -1,4 +1,6 @@
 #pragma once
+#include <flatbuffers/flatbuffers.h>
+
 #include "blockio.h"
 #include "randperm.h"
 #include "repo.h"
@@ -10,10 +12,13 @@ public:
     kvstore() = default;
     ~kvstore();
 
-    void open(LPCWSTR idxfile, uint32_t entries = DEFAULT_ENTRIES);
-    bool insert(LPCSTR key);
+    using FBBuilder = flatbuffers::FlatBufferBuilder;
+
+    bool insert(LPCSTR key, const FBBuilder& value);
+    bool lookup(LPCSTR key, FBBuilder& value);
 
     void close();
+    void open(LPCWSTR idxfile, uint32_t entries = DEFAULT_ENTRIES);
     void unlink();
 
     static constexpr auto DEFAULT_ENTRIES = 10000UL;
@@ -25,15 +30,17 @@ private:
 
     bool findSlot(const digest_type& digest, uint64_t& pageno, uint64_t& bucket);
     bool findSlot(LPCSTR key, uint64_t& pageno, uint64_t& bucket);
+    bool getBucket(LPCSTR key, uint64_t& pageno, uint64_t& bucket);
+    bool isfull() const;
     uint64_t hash(const digest_type& digest) const;
     uint64_t hash(const digest_type& digest, uint64_t size) const;
+    uint64_t hash(LPCSTR s) const;
     uint64_t perm(uint64_t i) const;
     void getDigest(uint64_t bucket, digest_type& digest) const;
     void mktable(LPCTSTR idxfile, uint32_t entries);
     void nextbucket(uint64_t i, uint64_t& bucket, uint64_t& pageno);
-    void setKey(uint64_t bucket, LPCSTR key);
-    bool isfull() const;
     void resize();
+    void setKey(uint64_t bucket, LPCSTR key);
 
     BlockIO m_index; // index block i/o
     Repository m_repo; // data repository

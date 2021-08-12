@@ -2,13 +2,11 @@
 
 #include "coobject_generated.h"
 
-class coobject
+class coobject : public flatbuffers::FlatBufferBuilder
 {
 public:
+    coobject() = default;
     coobject(CoType type, REFGUID guid);
 
     const FBCoObject* buffer() const;
-
-private:
-    flatbuffers::FlatBufferBuilder m_builder;
 };

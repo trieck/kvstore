@@ -85,7 +85,7 @@ void kvstore::resize()
     // TODO:
 }
 
-bool kvstore::insert(LPCSTR key)
+bool kvstore::insert(LPCSTR key, const FBBuilder& value)
 {
     uint64_t pageno, bucket;
     if (!findSlot(key, pageno, bucket)) {
@@ -94,9 +94,8 @@ bool kvstore::insert(LPCSTR key)
 
     setKey(bucket, key);
 
-    // TODO: write to repo
-
-    uint64_t offset = 0;
+    uint64_t offset;
+    m_repo.insert(value, offset);
 
     auto ppage = reinterpret_cast<LPPAGE>(m_page.data());
     SET_FILLED(ppage, bucket);
@@ -109,6 +108,60 @@ bool kvstore::insert(LPCSTR key)
     if (isfull()) {
         resize();
     }
+
+    return true;
+}
+
+bool kvstore::getBucket(LPCSTR key, uint64_t& pageno, uint64_t& bucket)
+{
+    uint32_t kdigest[SHA1_DIGEST_INTS];
+    sha1(key, kdigest);
+
+    auto h = hash(kdigest);
+    pageno = h / BUCKETS_PER_PAGE;
+    bucket = h % BUCKETS_PER_PAGE;
+
+    auto ppage = reinterpret_cast<LPPAGE>(m_page.data());
+
+    m_index.readblock(pageno, ppage);
+
+    if (IS_EMPTY(ppage, bucket)) {
+        return false; // no hit
+    }
+
+    uint32_t bdigest[SHA1_DIGEST_INTS];
+    for (auto i = 0ULL; i < m_tablesize; ++i) {
+        if (IS_EMPTY(ppage, bucket)) {
+            return false; // no hit
+        }
+
+        getDigest(bucket, bdigest);
+        if (isEqualDigest(bdigest, kdigest)) {
+            return true; // hit
+        }
+
+        nextbucket(i, bucket, pageno);
+    }
+
+    return false;
+}
+
+bool kvstore::lookup(LPCSTR key, FBBuilder& value)
+{
+    uint64_t pageno, bucket;
+    if (!getBucket(key, pageno, bucket)) {
+        return false;
+    }
+
+    auto ppage = reinterpret_cast<LPCPAGE>(m_page.data());
+    
+    if (IS_DELETED(ppage, bucket)) {
+        return false;
+    }
+
+    auto offset = BUCKET_DATUM(ppage, bucket);
+
+    m_repo.readVal(offset, value);
 
     return true;
 }
@@ -192,6 +245,13 @@ uint64_t kvstore::hash(const digest_type& digest, uint64_t size) const
 uint64_t kvstore::hash(const digest_type& digest) const
 {
     return hash(digest, m_tablesize);
+}
+
+uint64_t kvstore::hash(LPCSTR s) const
+{
+    uint32_t digest[SHA1_DIGEST_INTS];
+    sha1(s, digest);
+    return hash(digest);
 }
 
 void kvstore::close()

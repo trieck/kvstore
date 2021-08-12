@@ -4,6 +4,8 @@
 #error Unicode must be defined
 #endif
 
+#define NOMINMAX
+
 #include <Windows.h>
 
 #include <boost/config/compiler/visualc.hpp>
@@ -26,3 +28,4 @@
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <utility>
