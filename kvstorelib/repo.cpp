@@ -38,8 +38,10 @@ void Repository::open(LPCWSTR filename)
 
 void Repository::close()
 {
+    m_io.close();
 }
 
 void Repository::unlink()
 {
+    m_io.unlink();
 }

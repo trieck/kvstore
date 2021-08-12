@@ -29,7 +29,7 @@ void BlockIO::close()
 void BlockIO::unlink()
 {
     close();
-    //_unlink(filename_.c_str());
+    std::filesystem::remove(m_filename);
 }
 
 void BlockIO::readblock(uint64_t blockno, void* pv)

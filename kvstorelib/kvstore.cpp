@@ -5,11 +5,11 @@
 #include "primes.h"
 #include "sha1.h"
 
-// ensure one byte alignment for structures below
-#pragma pack (push, 1)
-
 using digest_type = boost::uuids::detail::sha1::digest_type;
 constexpr auto SHA1_DIGEST_INTS = sizeof(digest_type) / sizeof(uint32_t);
+
+// ensure one byte alignment for structures below
+#pragma pack (push, 1)
 
 // hash table bucket
 typedef struct Bucket
@@ -24,6 +24,8 @@ typedef struct Page
 {
     Bucket buckets[1]; // hash table
 }* LPPAGE;
+
+using LPCPAGE = const Page*;
 
 // restore default structure alignment
 #pragma pack (pop)
@@ -50,7 +52,7 @@ kvstore::~kvstore()
     close();
 }
 
-void kvstore::open(LPCTSTR idxfile, uint32_t entries)
+void kvstore::open(LPCWSTR idxfile, uint32_t entries)
 {
     close();
     mktable(idxfile, entries);
@@ -61,11 +63,51 @@ void kvstore::open(LPCTSTR idxfile, uint32_t entries)
     m_repo.open(repopath.c_str());
 }
 
+void kvstore::setKey(uint64_t bucket, LPCSTR key)
+{
+    uint32_t digest[SHA1_DIGEST_INTS];
+    sha1(key, digest);
+
+    auto ppage = reinterpret_cast<LPPAGE>(m_page.data());
+
+    auto* bdigest = BUCKET_DIGEST(ppage, bucket);
+
+    memcpy(bdigest, digest, sizeof(digest_type));
+}
+
+bool kvstore::isfull() const
+{
+    return m_fillcount >= (m_tablesize / 2);
+}
+
+void kvstore::resize()
+{
+    // TODO:
+}
+
 bool kvstore::insert(LPCSTR key)
 {
     uint64_t pageno, bucket;
     if (!findSlot(key, pageno, bucket)) {
         return false;
+    }
+
+    setKey(bucket, key);
+
+    // TODO: write to repo
+
+    uint64_t offset = 0;
+
+    auto ppage = reinterpret_cast<LPPAGE>(m_page.data());
+    SET_FILLED(ppage, bucket);
+    BUCKET_DATUM(ppage, bucket) = offset;
+
+    m_fillcount++;
+
+    m_index.writeblock(pageno, ppage);
+
+    if (isfull()) {
+        resize();
     }
 
     return true;
@@ -77,6 +119,38 @@ bool kvstore::findSlot(LPCSTR key, uint64_t& pageno, uint64_t& bucket)
     sha1(key, digest);
 
     return findSlot(digest, pageno, bucket);
+}
+
+void kvstore::getDigest(uint64_t bucket, digest_type& digest) const
+{
+    auto ppage = reinterpret_cast<LPCPAGE>(m_page.data());
+
+    auto* bdigest = BUCKET_DIGEST(ppage, bucket);
+    memcpy(digest, bdigest, sizeof(digest_type));
+}
+
+bool kvstore::isEqualDigest(const digest_type& d1, const digest_type& d2)
+{
+    return memcmp(d1, d2, sizeof(digest_type)) == 0;
+}
+
+uint64_t kvstore::perm(uint64_t i) const
+{
+    return 1 + m_perm[i]; // pseudo-random probing
+}
+
+void kvstore::nextbucket(uint64_t i, uint64_t& bucket, uint64_t& pageno)
+{
+    auto ppage = reinterpret_cast<LPPAGE>(m_page.data());
+
+    auto realbucket = BUCKETS_PER_PAGE * pageno + bucket;
+    auto nextbucket = (realbucket + perm(i)) % m_tablesize;
+    auto nextpage = nextbucket / BUCKETS_PER_PAGE;
+    bucket = nextbucket % BUCKETS_PER_PAGE;
+    if (pageno != nextpage) {
+        m_index.readblock(nextpage, ppage);
+        pageno = nextpage;
+    }
 }
 
 bool kvstore::findSlot(const digest_type& digest, uint64_t& pageno, uint64_t& bucket)
@@ -91,6 +165,20 @@ bool kvstore::findSlot(const digest_type& digest, uint64_t& pageno, uint64_t& bu
 
     if (IS_EMPTY(ppage, bucket)) {
         return true;
+    }
+
+    uint32_t bdigest[SHA1_DIGEST_INTS];
+    for (auto i = 0ULL; i < m_tablesize; ++i) {
+        if (IS_EMPTY(ppage, bucket)) {
+            return true; // empty slot
+        }
+
+        getDigest(bucket, bdigest);
+        if (isEqualDigest(bdigest, digest)) {
+            return false; // already exists
+        }
+
+        nextbucket(i, bucket, pageno);
     }
 
     return false;
