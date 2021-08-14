@@ -2,11 +2,20 @@
 
 #include "coobject_generated.h"
 
-class coobject : public flatbuffers::FlatBufferBuilder
+/////////////////////////////////////////////////////////////////////////////
+class coclass : public flatbuffers::FlatBufferBuilder
 {
 public:
-    coobject() = default;
-    coobject(CoType type, REFGUID guid);
+    coclass() = default;
+    coclass(const std::wstring& clsID,
+            const std::wstring& appID,
+            const wstring_set& catIDs);
+};
 
-    const FBCoObject* buffer() const;
+/////////////////////////////////////////////////////////////////////////////
+class coapp : public flatbuffers::FlatBufferBuilder
+{
+public:
+    coapp() = default;
+    coapp(const std::wstring& appID, const wstring_set& clsIDs);
 };

@@ -12,11 +12,11 @@ struct DatumHeader
     uint32_t length; // length of this datum segment
 };
 
-// 512-byte datum
+// 128-byte datum
 typedef struct Datum
 {
     DatumHeader header;
-    uint8_t data[512 - sizeof(DatumHeader)];
+    uint8_t data[128 - sizeof(DatumHeader)];
 }* LPDATUM;
 
 // data page

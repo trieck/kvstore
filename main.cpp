@@ -1,26 +1,59 @@
 #include "common.h"
+#include "coobjects.h"
+#include "coobject.h"
+#include "kvstore.h"
+
+struct CoInit
+{
+    CoInit()
+    {
+        CoInitialize(nullptr);
+    }
+
+    ~CoInit()
+    {
+        CoUninitialize();
+    }
+};
 
 static void testStore()
 {
     kvstore store;
-    store.open(L"d:\\tmp\\tom.idx");
+    store.open(L"d:\\tmp\\coobjects.idx");
 
-    coobject value(CoType::IID, GUID_NULL);
-    store.insert("foo", value);
+    CoObjects objects;
+    objects.Construct();
 
-    coobject result;
-    auto b = store.lookup("foo", result);
-    assert(b);
+    objects.classes([&store](const std::wstring& clsID,
+                             const std::wstring& appID,
+                             const wstring_set& catIDs)
+    {
+        coclass clazz(clsID, appID, catIDs);
 
-    auto* ob1 = value.buffer();
-    auto* ob2 = result.buffer();
+        CString key;
+        key.Format(L"CLSID:%s", clsID.c_str());
 
-    assert(ob1->type() == ob2->type());
-    assert(ob1->guid()->str() == ob2->guid()->str());
+        store.insert(key, clazz);
+    });
+
+    objects.apps([&store](const std::wstring& appID,
+                          const wstring_set& clsIDs)
+    {
+        coapp app(appID, clsIDs);
+
+        CString key;
+        key.Format(L"APPID:%s", appID.c_str());
+
+        store.insert(key, app);
+    });
+
+    store.close();
 }
 
 int main()
 {
+    CoInit init;
+
     try {
         testStore();
     } catch (const std::exception& e) {

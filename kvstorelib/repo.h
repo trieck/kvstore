@@ -1,7 +1,7 @@
 #pragma once
-#include <flatbuffers/flatbuffers.h>
-
 #include "blockio.h"
+
+#include <flatbuffers/flatbuffers.h>
 
 class Repository
 {

@@ -1,9 +1,9 @@
 #include "kvstorelib.h"
 #include "kvstore.h"
-
 #include "fnvhash64.h"
 #include "primes.h"
 #include "sha1.h"
+#include "utf8str.h"
 
 using digest_type = boost::uuids::detail::sha1::digest_type;
 constexpr auto SHA1_DIGEST_INTS = sizeof(digest_type) / sizeof(uint32_t);
@@ -52,6 +52,13 @@ kvstore::~kvstore()
     close();
 }
 
+bool kvstore::insert(LPCWSTR key, const FBBuilder& value)
+{
+    auto keyA = utf8str(key);
+
+    return insert(static_cast<LPCSTR>(keyA), value);
+}
+
 void kvstore::open(LPCWSTR idxfile, uint32_t entries)
 {
     close();
@@ -63,16 +70,20 @@ void kvstore::open(LPCWSTR idxfile, uint32_t entries)
     m_repo.open(repopath.c_str());
 }
 
+void kvstore::setKey(uint64_t bucket, const digest_type& digest)
+{
+    auto ppage = reinterpret_cast<LPPAGE>(m_page.data());
+
+    auto* bdigest = BUCKET_DIGEST(ppage, bucket);
+    memcpy(bdigest, digest, sizeof(digest_type));
+}
+
 void kvstore::setKey(uint64_t bucket, LPCSTR key)
 {
     uint32_t digest[SHA1_DIGEST_INTS];
     sha1(key, digest);
 
-    auto ppage = reinterpret_cast<LPPAGE>(m_page.data());
-
-    auto* bdigest = BUCKET_DIGEST(ppage, bucket);
-
-    memcpy(bdigest, digest, sizeof(digest_type));
+    setKey(bucket, digest);
 }
 
 bool kvstore::isfull() const
@@ -83,16 +94,20 @@ bool kvstore::isfull() const
 void kvstore::resize()
 {
     // TODO:
+    ASSERT(0);
 }
 
 bool kvstore::insert(LPCSTR key, const FBBuilder& value)
 {
+    uint32_t digest[SHA1_DIGEST_INTS];
+    sha1(key, digest);
+
     uint64_t pageno, bucket;
-    if (!findSlot(key, pageno, bucket)) {
+    if (!findSlot(digest, pageno, bucket)) {
         return false;
     }
 
-    setKey(bucket, key);
+    setKey(bucket, digest);
 
     uint64_t offset;
     m_repo.insert(value, offset);
@@ -110,6 +125,13 @@ bool kvstore::insert(LPCSTR key, const FBBuilder& value)
     }
 
     return true;
+}
+
+bool kvstore::lookup(LPCWSTR key, FBBuilder& value)
+{
+    auto keyA = utf8str(key);
+
+    return lookup(static_cast<LPCSTR>(keyA), value);
 }
 
 bool kvstore::getBucket(LPCSTR key, uint64_t& pageno, uint64_t& bucket)

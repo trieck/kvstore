@@ -1,18 +1,77 @@
 #include "common.h"
-#include "utility.h"
+#include "coobject.h"
+#include "utf8str.h"
 
-coobject::coobject(CoType type, REFGUID guid)
+using namespace flatbuffers;
+
+coclass::coclass(const std::wstring& clsID, const std::wstring& appID,
+                 const std::unordered_set<std::wstring>& catIDs)
 {
-    auto sGUID = utf8str(GuidToString(guid));
+    auto sCLSID = utf8str(clsID);
+    auto guidOffset = CreateString(static_cast<LPCSTR>(sCLSID));
 
-    auto guid_offset = CreateString(static_cast<LPCSTR>(sGUID));
-    auto root = CreateFBCoObject(*this, type, guid_offset);
+    Offset<String> appidOffset;
+    if (!appID.empty()) {
+        auto sAppID = utf8str(appID);
+        appidOffset = CreateString(static_cast<LPCSTR>(sAppID));
+    }
 
-    FinishFBCoObjectBuffer(*this, root);
+    Offset<Vector<Offset<String>>> catidsOffset;
+    if (!catIDs.empty()) {
+        std::vector<std::string> vCatIDs;
+        for (const auto& catID : catIDs) {
+            vCatIDs.emplace_back(utf8str(catID));
+        }
+
+        catidsOffset = CreateVectorOfStrings(vCatIDs);
+    }
+
+    CoClassBuilder cbuilder(*this);
+    if (!appidOffset.IsNull()) {
+        cbuilder.add_app_id(appidOffset);
+    }
+
+    if (!catidsOffset.IsNull()) {
+        cbuilder.add_cat_ids(catidsOffset);
+    }
+
+    auto coclass = cbuilder.Finish().Union();
+
+    CoObjectBuilder builder(*this);
+    builder.add_type_type(CoType::CoClass);
+    builder.add_type(coclass);
+    builder.add_guid(guidOffset);
+
+    auto root = builder.Finish();
+    FinishCoObjectBuffer(*this, root);
 }
 
-const FBCoObject* coobject::buffer() const
+coapp::coapp(const std::wstring& appID, const wstring_set& clsIDs)
 {
-    return GetFBCoObject(GetBufferPointer());
-}
+    auto sAppID = utf8str(appID);
+    auto guidOffset = CreateString(static_cast<LPCSTR>(sAppID));
 
+    Offset<Vector<Offset<String>>> clsidsOffset;
+    if (!clsIDs.empty()) {
+        std::vector<std::string> vClsIDs;
+        for (const auto& clsID : clsIDs) {
+            vClsIDs.emplace_back(utf8str(clsID));
+        }
+
+        clsidsOffset = CreateVectorOfStrings(vClsIDs);
+    }
+
+    CoAppBuilder abuilder(*this);
+    if (!clsidsOffset.IsNull()) {
+        abuilder.add_cls_ids(clsidsOffset);
+    }
+    auto coapp = abuilder.Finish().Union();
+
+    CoObjectBuilder builder(*this);
+    builder.add_type_type(CoType::CoApp);
+    builder.add_type(coapp);
+    builder.add_guid(guidOffset);
+
+    auto root = builder.Finish();
+    FinishCoObjectBuffer(*this, root);
+}

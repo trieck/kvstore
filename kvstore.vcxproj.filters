@@ -33,6 +33,21 @@
     <ClCompile Include="common.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="coobjects.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="regkey.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="coifaces.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="coapps.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cocats.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="coobject.h">
@@ -47,5 +62,25 @@
     <ClInclude Include="generated\coobject_generated.h">
       <Filter>Generated Files</Filter>
     </ClInclude>
+    <ClInclude Include="coobjects.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="regkey.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="coifaces.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="coapps.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cocats.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="schema\coobject.fbs">
+      <Filter>Schema Files</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

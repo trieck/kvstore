@@ -8,6 +8,11 @@
 
 #include <Windows.h>
 
+#ifndef ASSERT
+#include <crtdbg.h>
+#define ASSERT _ASSERT
+#endif // ASSERT
+
 #include <boost/config/compiler/visualc.hpp>
 #include <boost/format.hpp>
 
@@ -28,4 +33,7 @@
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
+#include <vector>
+

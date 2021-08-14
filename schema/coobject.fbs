@@ -1,9 +1,25 @@
 
-enum CoType:byte { CLSID, IID, TYPELIB, APPID, CATID }
+union CoType { CoClass, CoInterface, CoCategory, CoApp }
 
-table FBCoObject {
-    type: CoType;
-    guid: string;
+table CoInterface {
 }
 
-root_type FBCoObject;
+table CoClass {
+    app_id: string;
+    cat_ids: [string];
+}
+
+table CoCategory {
+    cls_ids: [string];
+}
+
+table CoApp {
+    cls_ids: [string];
+}
+
+table CoObject {
+    type: CoType (required);
+    guid: string (required, key);
+}
+
+root_type CoObject;

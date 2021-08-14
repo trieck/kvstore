@@ -14,7 +14,9 @@ public:
 
     using FBBuilder = flatbuffers::FlatBufferBuilder;
 
+    bool insert(LPCWSTR key, const FBBuilder& value);
     bool insert(LPCSTR key, const FBBuilder& value);
+    bool lookup(LPCWSTR key, FBBuilder& value);
     bool lookup(LPCSTR key, FBBuilder& value);
 
     void close();
@@ -40,6 +42,7 @@ private:
     void mktable(LPCTSTR idxfile, uint32_t entries);
     void nextbucket(uint64_t i, uint64_t& bucket, uint64_t& pageno);
     void resize();
+    void setKey(uint64_t bucket, const digest_type& digest);
     void setKey(uint64_t bucket, LPCSTR key);
 
     BlockIO m_index; // index block i/o
