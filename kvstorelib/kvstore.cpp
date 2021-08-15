@@ -38,6 +38,7 @@ using LPCPAGE = const Page*;
 #define IS_EMPTY(p, b)          (!((p)->buckets[b].flags & BF_FILLED))
 #define IS_FILLED(p, b)         ((p)->buckets[b].flags & BF_FILLED)
 #define SET_FILLED(p, b)        ((p)->buckets[b].flags |= BF_FILLED)
+#define SET_EMPTY(p, b)         ((p)->buckets[b].flags &= ~BF_FILLED)
 #define IS_DELETED(p, b)        ((p)->buckets[b].flags & BF_DELETED)
 #define SET_DELETED(p, b)       ((p)->buckets[b].flags |= BF_DELETED)
 #define BUCKET(p, b)            ((p)->buckets[b])
@@ -52,7 +53,7 @@ kvstore::~kvstore()
     close();
 }
 
-bool kvstore::insert(LPCWSTR key, const FBBuilder& value)
+bool kvstore::insert(LPCWSTR key, const IValue& value)
 {
     auto keyA = utf8str(key);
 
@@ -61,10 +62,13 @@ bool kvstore::insert(LPCWSTR key, const FBBuilder& value)
 
 void kvstore::open(LPCWSTR idxfile, uint32_t entries)
 {
-    close();
-    mktable(idxfile, entries);
+    m_entrysize = entries;
+    m_idxfile = idxfile;
 
-    std::filesystem::path repopath(idxfile);
+    close();
+    mktable(entries);
+
+    std::filesystem::path repopath(m_idxfile);
     repopath.replace_extension("dat");
 
     m_repo.open(repopath.c_str());
@@ -93,11 +97,57 @@ bool kvstore::isfull() const
 
 void kvstore::resize()
 {
-    // TODO:
-    ASSERT(0);
+    m_index.flush();
+
+    auto noldpages = m_nbpages;
+    m_entrysize = static_cast<uint32_t>(m_entrysize * 2);
+    mktable(false);
+
+    auto ppage = reinterpret_cast<LPPAGE>(m_page.data());
+
+    BlockIO::Block page2{};
+    auto ppage2 = reinterpret_cast<LPPAGE>(page2.data());
+
+    uint64_t bucket = 0, pageno = 0;
+    m_index.readblock(pageno, ppage);
+
+    for (;;) {
+        if (IS_FILLED(ppage, bucket)) {
+            auto pbucket = &BUCKET(ppage, bucket);
+            uint64_t newpage = -1, newbucket = -1;
+
+            if (!findSlot(ppage2, pbucket->digest, newpage, newbucket)) {
+                if (!(newpage == pageno && newbucket == bucket)) {
+                    throw std::runtime_error("table full.");
+                }
+            }
+
+            // rehashed to new location
+            if (newpage != pageno && newbucket != bucket) {
+                BUCKET(ppage2, newbucket) = *pbucket;
+                *pbucket = {}; // clear existing bucket
+
+                m_index.writeblock(pageno, ppage);
+                m_index.writeblock(newpage, ppage2);
+            } else if (newpage == pageno && newbucket != bucket) {
+                BUCKET(ppage, newbucket) = *pbucket;
+                BUCKET(ppage, bucket) = {};
+                m_index.writeblock(pageno, ppage);
+            }
+        }
+
+        if ((bucket = (bucket + 1) % BUCKETS_PER_PAGE) == 0) {
+            // next page
+            if (++pageno >= noldpages) {
+                break;
+            }
+
+            m_index.readblock(pageno, ppage);
+        }
+    }
 }
 
-bool kvstore::insert(LPCSTR key, const FBBuilder& value)
+bool kvstore::insert(LPCSTR key, const IValue& value)
 {
     uint32_t digest[SHA1_DIGEST_INTS];
     sha1(key, digest);
@@ -127,29 +177,22 @@ bool kvstore::insert(LPCSTR key, const FBBuilder& value)
     return true;
 }
 
-bool kvstore::lookup(LPCWSTR key, FBBuilder& value)
+bool kvstore::lookup(LPCWSTR key, IValue& value)
 {
     auto keyA = utf8str(key);
 
     return lookup(static_cast<LPCSTR>(keyA), value);
 }
 
-bool kvstore::getBucket(LPCSTR key, uint64_t& pageno, uint64_t& bucket)
+bool kvstore::getBucket(const digest_type& digest, uint64_t& pageno, uint64_t& bucket)
 {
-    uint32_t kdigest[SHA1_DIGEST_INTS];
-    sha1(key, kdigest);
-
-    auto h = hash(kdigest);
+    auto h = hash(digest);
     pageno = h / BUCKETS_PER_PAGE;
     bucket = h % BUCKETS_PER_PAGE;
 
     auto ppage = reinterpret_cast<LPPAGE>(m_page.data());
 
     m_index.readblock(pageno, ppage);
-
-    if (IS_EMPTY(ppage, bucket)) {
-        return false; // no hit
-    }
 
     uint32_t bdigest[SHA1_DIGEST_INTS];
     for (auto i = 0ULL; i < m_tablesize; ++i) {
@@ -158,17 +201,25 @@ bool kvstore::getBucket(LPCSTR key, uint64_t& pageno, uint64_t& bucket)
         }
 
         getDigest(bucket, bdigest);
-        if (isEqualDigest(bdigest, kdigest)) {
+        if (isEqualDigest(bdigest, digest)) {
             return true; // hit
         }
 
-        nextbucket(i, bucket, pageno);
+        nextbucket(ppage, i, bucket, pageno);
     }
 
     return false;
 }
 
-bool kvstore::lookup(LPCSTR key, FBBuilder& value)
+bool kvstore::getBucket(LPCSTR key, uint64_t& pageno, uint64_t& bucket)
+{
+    uint32_t digest[SHA1_DIGEST_INTS];
+    sha1(key, digest);
+
+    return getBucket(digest, pageno, bucket);
+}
+
+bool kvstore::lookup(LPCSTR key, IValue& value)
 {
     uint64_t pageno, bucket;
     if (!getBucket(key, pageno, bucket)) {
@@ -176,7 +227,7 @@ bool kvstore::lookup(LPCSTR key, FBBuilder& value)
     }
 
     auto ppage = reinterpret_cast<LPCPAGE>(m_page.data());
-    
+
     if (IS_DELETED(ppage, bucket)) {
         return false;
     }
@@ -188,20 +239,39 @@ bool kvstore::lookup(LPCSTR key, FBBuilder& value)
     return true;
 }
 
-bool kvstore::findSlot(LPCSTR key, uint64_t& pageno, uint64_t& bucket)
+bool kvstore::destroy(LPCWSTR key)
 {
-    uint32_t digest[SHA1_DIGEST_INTS];
-    sha1(key, digest);
+    auto keyA = utf8str(key);
+    return destroy(static_cast<LPCSTR>(keyA));
+}
 
-    return findSlot(digest, pageno, bucket);
+bool kvstore::destroy(LPCSTR key)
+{
+    uint64_t pageno, bucket;
+    if (!getBucket(key, pageno, bucket)) {
+        return false;
+    }
+
+    auto ppage = reinterpret_cast<LPPAGE>(m_page.data());
+
+    SET_DELETED(ppage, bucket);
+
+    m_index.writeblock(pageno, ppage);
+
+    return true;
+}
+
+void kvstore::getDigest(const void* pvpage, uint64_t bucket, digest_type& digest) const
+{
+    auto ppage = static_cast<LPCPAGE>(pvpage);
+
+    auto* bdigest = BUCKET_DIGEST(ppage, bucket);
+    memcpy(digest, bdigest, sizeof(digest_type));
 }
 
 void kvstore::getDigest(uint64_t bucket, digest_type& digest) const
 {
-    auto ppage = reinterpret_cast<LPCPAGE>(m_page.data());
-
-    auto* bdigest = BUCKET_DIGEST(ppage, bucket);
-    memcpy(digest, bdigest, sizeof(digest_type));
+    getDigest(m_page.data(), bucket, digest);
 }
 
 bool kvstore::isEqualDigest(const digest_type& d1, const digest_type& d2)
@@ -214,9 +284,9 @@ uint64_t kvstore::perm(uint64_t i) const
     return 1 + m_perm[i]; // pseudo-random probing
 }
 
-void kvstore::nextbucket(uint64_t i, uint64_t& bucket, uint64_t& pageno)
+void kvstore::nextbucket(void* pvpage, uint64_t i, uint64_t& bucket, uint64_t& pageno)
 {
-    auto ppage = reinterpret_cast<LPPAGE>(m_page.data());
+    auto ppage = static_cast<LPPAGE>(pvpage);
 
     auto realbucket = BUCKETS_PER_PAGE * pageno + bucket;
     auto nextbucket = (realbucket + perm(i)) % m_tablesize;
@@ -228,13 +298,18 @@ void kvstore::nextbucket(uint64_t i, uint64_t& bucket, uint64_t& pageno)
     }
 }
 
-bool kvstore::findSlot(const digest_type& digest, uint64_t& pageno, uint64_t& bucket)
+void kvstore::nextbucket(uint64_t i, uint64_t& bucket, uint64_t& pageno)
+{
+    nextbucket(m_page.data(), i, bucket, pageno);
+}
+
+bool kvstore::findSlot(void* pvpage, const digest_type& digest, uint64_t& pageno, uint64_t& bucket)
 {
     auto h = hash(digest);
     pageno = h / BUCKETS_PER_PAGE;
     bucket = h % BUCKETS_PER_PAGE;
 
-    auto ppage = reinterpret_cast<LPPAGE>(m_page.data());
+    auto ppage = static_cast<LPPAGE>(pvpage);
 
     m_index.readblock(pageno, ppage);
 
@@ -248,15 +323,28 @@ bool kvstore::findSlot(const digest_type& digest, uint64_t& pageno, uint64_t& bu
             return true; // empty slot
         }
 
-        getDigest(bucket, bdigest);
+        getDigest(ppage, bucket, bdigest);
         if (isEqualDigest(bdigest, digest)) {
             return false; // already exists
         }
 
-        nextbucket(i, bucket, pageno);
+        nextbucket(ppage, i, bucket, pageno);
     }
 
     return false;
+}
+
+bool kvstore::findSlot(const digest_type& digest, uint64_t& pageno, uint64_t& bucket)
+{
+    return findSlot(m_page.data(), digest, pageno, bucket);
+}
+
+bool kvstore::findSlot(LPCSTR key, uint64_t& pageno, uint64_t& bucket)
+{
+    uint32_t digest[SHA1_DIGEST_INTS];
+    sha1(key, digest);
+
+    return findSlot(digest, pageno, bucket);
 }
 
 uint64_t kvstore::hash(const digest_type& digest, uint64_t size) const
@@ -289,14 +377,45 @@ void kvstore::unlink()
     m_index.unlink();
 }
 
-void kvstore::mktable(LPCTSTR idxfile, uint32_t entries)
+uint64_t kvstore::indexsize()
 {
-    m_tablesize = Primes::prime(entries);
-    m_nbpages = (m_tablesize / BUCKETS_PER_PAGE) + 1;
+    // TODO:
+    return 0;
+}
 
+uint64_t kvstore::tablesize() const
+{
+    // TODO:
+    return 0;
+}
+
+uint64_t kvstore::fillcount() const
+{
+    // TODO:
+    return 0;
+}
+
+float kvstore::loadfactor() const
+{
+    // TODO:
+    return 0;
+}
+
+uint64_t kvstore::maxrun()
+{
+    // TODO:
+    return 0;
+}
+
+void kvstore::mktable(bool create)
+{
+    m_tablesize = Primes::prime(m_entrysize);
+    m_nbpages = (m_tablesize / BUCKETS_PER_PAGE) + 1;
     m_perm.generate(m_tablesize);
 
-    m_index.open(idxfile, std::ios::in | std::ios::out | std::ios::trunc);
-    m_index.writeblock(m_nbpages - 1, m_page.data());
-    m_index.flush();
+    if (create) {
+        m_index.open(m_idxfile.c_str(), std::ios::in | std::ios::out | std::ios::trunc);
+    }
+
+    m_index.resize(m_nbpages);
 }

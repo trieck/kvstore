@@ -40,6 +40,7 @@ auto constexpr DATUM_PER_PAGE = BlockIO::BLOCK_SIZE / sizeof(Datum);
 
 void Repository::open(LPCWSTR filename)
 {
+    m_filename = filename;
     m_io.open(filename, std::ios::in | std::ios::out | std::ios::trunc);
     m_io.writeblock(m_pageno, m_page.data());
 }
@@ -49,9 +50,9 @@ void Repository::close()
     m_io.close();
 }
 
-void Repository::insert(const FBBuilder& value, uint64_t& offset)
+void Repository::insert(const IValue& value, uint64_t& offset)
 {
-    writeValue(value.GetBufferPointer(), value.GetSize(), value.GetSize(), offset);
+    writeValue(value.data(), value.size(), value.size(), offset);
 }
 
 void Repository::unlink()
@@ -59,7 +60,7 @@ void Repository::unlink()
     m_io.unlink();
 }
 
-void Repository::readVal(uint64_t offset, FBBuilder& value)
+void Repository::readVal(uint64_t offset, IValue& value)
 {
     uint64_t pageno = offset / BlockIO::BLOCK_SIZE;
     uint64_t datum = (offset - pageno * BlockIO::BLOCK_SIZE) / sizeof(Datum);
@@ -89,8 +90,7 @@ void Repository::readVal(uint64_t offset, FBBuilder& value)
         m_io.readblock(pageno, ppage);
     }
 
-    value.Reset();
-    value.PushFlatBuffer(buffer.data(), buffer.size());
+    value.copy(buffer.data(), totalLen);
 }
 
 void Repository::newpage()

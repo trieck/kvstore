@@ -48,6 +48,15 @@ void BlockIO::writeblock(uint64_t blockno, const void* pv)
     }
 }
 
+void BlockIO::resize(uint64_t blocks)
+{
+    auto ncurblocks = fileSize() / BLOCK_SIZE;
+    if (blocks != ncurblocks) {
+        auto size = blocks * BLOCK_SIZE;
+        std::filesystem::resize_file(m_filename, size);
+    }
+}
+
 void BlockIO::seekblock(uint64_t blockno)
 {
     std::ostream::off_type offset = static_cast<int64_t>(blockno) * BLOCK_SIZE;

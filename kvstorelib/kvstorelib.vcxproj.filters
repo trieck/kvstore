@@ -45,6 +45,9 @@
     <ClInclude Include="fnvhash64.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="value.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="kvstore.cpp">

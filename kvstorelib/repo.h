@@ -1,19 +1,16 @@
 #pragma once
 #include "blockio.h"
-
-#include <flatbuffers/flatbuffers.h>
+#include "value.h"
 
 class Repository
 {
 public:
     Repository() = default;
 
-    using FBBuilder = flatbuffers::FlatBufferBuilder;
-
     void close();
-    void insert(const FBBuilder& value, uint64_t& offset);
+    void insert(const IValue& value, uint64_t& offset);
     void open(LPCWSTR filename);
-    void readVal(uint64_t offset, FBBuilder& value);
+    void readVal(uint64_t offset, IValue& value);
     void unlink();
 
 private:
@@ -28,4 +25,5 @@ private:
     uint64_t m_pageno = 0; // current data page while writing
     uint8_t m_datum = 0; // current datum on data page while writing
     BlockIO::Block m_page{}; // disk page
+    std::wstring m_filename; // file name
 };

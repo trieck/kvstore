@@ -16,6 +16,7 @@ public:
     void seekblock(uint64_t blockno);
     void unlink();
     void writeblock(uint64_t blockno, const void* pv);
+    void resize(uint64_t blocks);
 
     static constexpr auto BLOCK_SIZE = 4096UL;
 

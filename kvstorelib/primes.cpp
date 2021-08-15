@@ -18,12 +18,20 @@ constexpr static uint8_t delta[] = {
 };
 
 /////////////////////////////////////////////////////////////////////////////
-uint64_t Primes::prime(uint64_t i)
+uint64_t Primes::prime(uint64_t size)
 {
     auto j = 1;
 
-    while (i >>= 1)
+    auto i = size;
+    while (i >>= 1) {
         j++;
+    }
 
-    return (1ULL << j) - delta[j];
+    uint64_t p = 0;
+    for (; p < size; ++j) {
+        auto power = 1ULL << j;
+        p = power - delta[j];
+    }
+
+    return p;
 }

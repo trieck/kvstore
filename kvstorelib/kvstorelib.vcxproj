@@ -20,6 +20,7 @@
     <ClInclude Include="repo.h" />
     <ClInclude Include="sha1.h" />
     <ClInclude Include="utf8str.h" />
+    <ClInclude Include="value.h" />
     <ClInclude Include="wexcept.h" />
   </ItemGroup>
   <ItemGroup>

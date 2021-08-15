@@ -2,6 +2,7 @@
 #include "coobjects.h"
 #include "coobject.h"
 #include "kvstore.h"
+#include "utf8str.h"
 
 struct CoInit
 {
@@ -33,7 +34,14 @@ static void testStore()
         CString key;
         key.Format(L"CLSID:%s", clsID.c_str());
 
-        store.insert(key, clazz);
+        auto result = store.insert(key, clazz);
+        ASSERT(result);
+
+        // VERIFY STEP!
+        coobject o;
+        result = store.lookup(key, o);
+        ASSERT(result);
+        ASSERT(clazz == o);
     });
 
     objects.apps([&store](const std::wstring& appID,
@@ -44,9 +52,36 @@ static void testStore()
         CString key;
         key.Format(L"APPID:%s", appID.c_str());
 
-        store.insert(key, app);
+        auto result = store.insert(key, app);
+        ASSERT(result);
+
+        // VERIFY STEP!
+        coobject o;
+        result = store.lookup(key, o);
+        ASSERT(result);
+        ASSERT(app == o);
     });
 
+    //// TODO: Categories
+    auto key = L"CLSID:{60F75E71-0039-11D1-B1C9-000000000000}";
+
+    coclass clazz(key);
+    auto result = store.insert(key, clazz);
+    ASSERT(!result);    // already there
+
+    coobject object;
+    result = store.lookup(key, object);
+    ASSERT(result);
+
+    key = L"APPID:{79426537-5AA0-4D44-A2F4-999B148AE0AD}";
+    coapp app(key);
+
+    result = store.insert(key, app);
+    ASSERT(!result);    // already there
+
+    result = store.lookup(key, object);
+    ASSERT(result);
+    
     store.close();
 }
 

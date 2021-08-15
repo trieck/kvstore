@@ -31,11 +31,14 @@ bool CoObjects::Construct()
             continue;
         }
 
+        clsID.MakeUpper();
+
         m_clsids.insert(static_cast<LPCWSTR>(clsID));
 
         CString appID;
         result = subKey.QueryStringValue(L"AppID", appID);
         if (result == ERROR_SUCCESS) {
+            appID.MakeUpper();
             m_clsidApps[static_cast<LPCWSTR>(clsID)] = appID;
             m_apps.addClass(appID, clsID);
         }
@@ -59,6 +62,7 @@ bool CoObjects::Construct()
                 continue;
             }
 
+            catID.MakeUpper();
             catIDs.insert(static_cast<LPCWSTR>(catID));
             m_cats.addClass(catID, clsID);
         }

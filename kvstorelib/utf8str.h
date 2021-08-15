@@ -9,6 +9,8 @@ public:
     explicit operator LPCSTR() const;
     explicit operator const std::string&() const;
 
+    const std::string& str() const;
+
 private:
     std::string m_str;
 };

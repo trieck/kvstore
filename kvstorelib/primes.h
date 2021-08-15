@@ -6,5 +6,5 @@ public:
     Primes() = delete;
     ~Primes() = delete;
 
-    static uint64_t prime(uint64_t i);
+    static uint64_t prime(uint64_t size);
 };
