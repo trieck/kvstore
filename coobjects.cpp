@@ -100,3 +100,9 @@ void CoObjects::apps(const std::function<void(const std::wstring& appID,
 {
     m_apps.apps(fn);
 }
+
+void CoObjects::cats(const std::function<void(const std::wstring& catID,
+                                              const wstring_set& clsIDs)>& fn)
+{
+    m_cats.cats(fn);
+}

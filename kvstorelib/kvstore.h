@@ -21,11 +21,12 @@ public:
     void open(LPCWSTR idxfile, uint32_t entries = DEFAULT_ENTRIES);
     void unlink();
 
-    uint64_t indexsize();
     uint64_t tablesize() const;
-    uint64_t fillcount() const;
-    float loadfactor() const;
     uint64_t maxrun();
+    uint64_t indexsize();
+    uint64_t fillcount() const;
+    std::wstring indexname() const;
+    float loadfactor() const;
 
     static constexpr auto DEFAULT_ENTRIES = 10000UL;
 
@@ -49,6 +50,7 @@ private:
     void nextbucket(uint64_t i, uint64_t& bucket, uint64_t& pageno);
     void nextbucket(void* pvpage, uint64_t i, uint64_t& bucket, uint64_t& pageno);
     void resize();
+    uint64_t runLength(void* pvpage, const digest_type& digest);
     void setKey(uint64_t bucket, const digest_type& digest);
     void setKey(uint64_t bucket, LPCSTR key);
 

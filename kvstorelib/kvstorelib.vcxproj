@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="blockio.h" />
+    <ClInclude Include="coinit.h" />
     <ClInclude Include="fnvhash64.h" />
     <ClInclude Include="kvstore.h" />
     <ClInclude Include="kvstorelib.h" />
@@ -19,7 +20,9 @@
     <ClInclude Include="randperm.h" />
     <ClInclude Include="repo.h" />
     <ClInclude Include="sha1.h" />
+    <ClInclude Include="timer.h" />
     <ClInclude Include="utf8str.h" />
+    <ClInclude Include="util.h" />
     <ClInclude Include="value.h" />
     <ClInclude Include="wexcept.h" />
   </ItemGroup>
@@ -39,10 +42,12 @@
     <ClCompile Include="randperm.cpp" />
     <ClCompile Include="repo.cpp" />
     <ClCompile Include="sha1.cpp" />
+    <ClCompile Include="timer.cpp" />
     <ClCompile Include="utf8str.cpp">
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">kvstorelib.h</PrecompiledHeaderFile>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">kvstorelib.h</PrecompiledHeaderFile>
     </ClCompile>
+    <ClCompile Include="util.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

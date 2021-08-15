@@ -17,6 +17,10 @@ public:
         const std::wstring& appID,
         const wstring_set& clsIDs)>& fn);
 
+    void cats(const std::function<void(
+        const std::wstring& catID,
+        const wstring_set& clsIDs)>& fn);
+
 private:
     wstring_set m_clsids;
     std::unordered_map<std::wstring, std::wstring> m_clsidApps;

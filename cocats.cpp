@@ -37,3 +37,18 @@ void CoCategories::addClass(LPCWSTR catID, LPCWSTR clsID)
     auto& it = m_catClsids[catID];
     it.insert(clsID);
 }
+
+void CoCategories::cats(const std::function<void(const std::wstring& catID,
+                                                 const std::unordered_set<std::wstring>& clsIDs)>& fn)
+{
+    for (const auto& catid : m_catids) {
+        wstring_set clsIDs;
+
+        auto clsIt = m_catClsids.find(catid);
+        if (clsIt != m_catClsids.end()) {
+            clsIDs = clsIt->second;
+        }
+
+        fn(catid, clsIDs);
+    }
+}

@@ -52,3 +52,11 @@ public:
     coapp() = delete;
     coapp(const std::wstring& appID, const wstring_set& clsIDs = {});
 };
+
+/////////////////////////////////////////////////////////////////////////////
+class cocat: public coobject
+{
+public:
+    cocat() = delete;
+    cocat(const std::wstring& catID, const wstring_set& clsIDs = {});
+};

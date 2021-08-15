@@ -133,3 +133,33 @@ coapp::coapp(const std::wstring& appID, const wstring_set& clsIDs)
     auto root = builder.Finish();
     FinishCoObjectBuffer(m_builder, root);
 }
+
+cocat::cocat(const std::wstring& catID, const wstring_set& clsIDs)
+{
+    auto sCatID = utf8str(catID);
+    auto guidOffset = m_builder.CreateString(static_cast<LPCSTR>(sCatID));
+
+    Offset<Vector<Offset<String>>> clsidsOffset;
+    if (!clsIDs.empty()) {
+        std::vector<std::string> vClsIDs;
+        for (const auto& clsID : clsIDs) {
+            vClsIDs.emplace_back(utf8str(clsID));
+        }
+
+        clsidsOffset = m_builder.CreateVectorOfStrings(vClsIDs);
+    }
+
+    CoCategoryBuilder cbuilder(m_builder);
+    if (!clsidsOffset.IsNull()) {
+        cbuilder.add_cls_ids(clsidsOffset);
+    }
+    auto cocat = cbuilder.Finish().Union();
+
+    CoObjectBuilder builder(m_builder);
+    builder.add_type_type(CoType::CoCategory);
+    builder.add_type(cocat);
+    builder.add_guid(guidOffset);
+
+    auto root = builder.Finish();
+    FinishCoObjectBuffer(m_builder, root);
+}

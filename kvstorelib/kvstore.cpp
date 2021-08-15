@@ -147,6 +147,31 @@ void kvstore::resize()
     }
 }
 
+uint64_t kvstore::runLength(void* pvpage, const digest_type& digest)
+{
+    auto h = hash(digest);
+    auto pageno = h / BUCKETS_PER_PAGE;
+    auto bucket = h % BUCKETS_PER_PAGE;
+
+    auto ppage = static_cast<LPPAGE>(pvpage);
+
+    m_index.readblock(pageno, ppage);
+    if (IS_EMPTY(ppage, bucket)) {
+        return 0;
+    }
+
+    auto run = 1ULL;
+    for (auto i = 0ULL; i < m_tablesize; ++i, ++run) {
+        if (IS_EMPTY(ppage, bucket)) {
+            break;
+        }
+
+        nextbucket(pvpage, i, bucket, pageno);
+    }
+
+    return run;
+}
+
 bool kvstore::insert(LPCSTR key, const IValue& value)
 {
     uint32_t digest[SHA1_DIGEST_INTS];
@@ -374,32 +399,62 @@ void kvstore::unlink()
 
 uint64_t kvstore::indexsize()
 {
-    // TODO:
-    return 0;
+    return m_index.fileSize();
 }
 
 uint64_t kvstore::tablesize() const
 {
-    // TODO:
-    return 0;
+    return m_tablesize;
 }
 
 uint64_t kvstore::fillcount() const
 {
-    // TODO:
-    return 0;
+    return m_fillcount;
 }
 
 float kvstore::loadfactor() const
 {
-    // TODO:
-    return 0;
+    if (m_tablesize == 0) {
+        return 0;
+    }
+
+    return 100 * (static_cast<float>(m_fillcount) / static_cast<float>(m_tablesize));
+}
+
+std::wstring kvstore::indexname() const
+{
+    return m_idxfile;
 }
 
 uint64_t kvstore::maxrun()
 {
-    // TODO:
-    return 0;
+    uint64_t maxrun = 0, bucket = 0, pageno = 0;
+    uint32_t digest[SHA1_DIGEST_INTS];
+
+    BlockIO::Block block{};
+
+    auto ppage = reinterpret_cast<LPPAGE>(m_page.data());
+    auto ppage2 = reinterpret_cast<LPPAGE>(block.data());
+
+    m_index.readblock(pageno, ppage);
+
+    for (; ;) {
+        if (IS_FILLED(ppage, bucket)) {
+            getDigest(ppage, bucket, digest);
+            maxrun = std::max(maxrun, runLength(ppage2, digest));
+        }
+
+        if ((bucket = ((bucket + 1) % BUCKETS_PER_PAGE)) == 0) {
+            // next page
+            if ((pageno = ((pageno + 1) % m_nbpages)) == 0) {
+                break; // wrapped
+            }
+
+            m_index.readblock(pageno, ppage);
+        }
+    }
+
+    return maxrun;
 }
 
 void kvstore::mktable(bool create)
