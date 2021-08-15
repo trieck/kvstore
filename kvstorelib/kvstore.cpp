@@ -279,17 +279,12 @@ bool kvstore::isEqualDigest(const digest_type& d1, const digest_type& d2)
     return memcmp(d1, d2, sizeof(digest_type)) == 0;
 }
 
-uint64_t kvstore::perm(uint64_t i) const
-{
-    return 1 + m_perm[i]; // pseudo-random probing
-}
-
 void kvstore::nextbucket(void* pvpage, uint64_t i, uint64_t& bucket, uint64_t& pageno)
 {
     auto ppage = static_cast<LPPAGE>(pvpage);
 
     auto realbucket = BUCKETS_PER_PAGE * pageno + bucket;
-    auto nextbucket = (realbucket + perm(i)) % m_tablesize;
+    auto nextbucket = (realbucket + 1) % m_tablesize;
     auto nextpage = nextbucket / BUCKETS_PER_PAGE;
     bucket = nextbucket % BUCKETS_PER_PAGE;
     if (pageno != nextpage) {
@@ -411,7 +406,6 @@ void kvstore::mktable(bool create)
 {
     m_tablesize = Primes::prime(m_entrysize);
     m_nbpages = (m_tablesize / BUCKETS_PER_PAGE) + 1;
-    m_perm.generate(m_tablesize);
 
     if (create) {
         m_index.open(m_idxfile.c_str(), std::ios::in | std::ios::out | std::ios::trunc);

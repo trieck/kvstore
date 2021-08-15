@@ -1,6 +1,5 @@
 #pragma once
 #include "blockio.h"
-#include "randperm.h"
 #include "repo.h"
 #include "sha1.h"
 #include "value.h"
@@ -44,7 +43,6 @@ private:
     uint64_t hash(const digest_type& digest) const;
     uint64_t hash(const digest_type& digest, uint64_t size) const;
     uint64_t hash(LPCSTR s) const;
-    uint64_t perm(uint64_t i) const;
     void getDigest(const void* pvpage, uint64_t bucket, digest_type& digest) const;
     void getDigest(uint64_t bucket, digest_type& digest) const;
     void mktable(bool create = true);
@@ -56,7 +54,6 @@ private:
 
     BlockIO m_index; // index block i/o
     Repository m_repo; // data repository
-    RandomPerm m_perm; // random permutation for pseudo-random probing
     uint64_t m_tablesize = 0; // size of hash table
     uint64_t m_entrysize = 0; // requested entry size
     uint64_t m_fillcount = 0; // fill count

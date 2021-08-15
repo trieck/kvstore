@@ -20,7 +20,7 @@ struct CoInit
 static void testStore()
 {
     kvstore store;
-    store.open(L"d:\\tmp\\coobjects.idx");
+    store.open(L"d:\\tmp\\coobjects.idx", 2);
 
     CoObjects objects;
     objects.Construct();
