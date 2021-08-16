@@ -8,6 +8,9 @@ class coobject : public IValue
 {
 public:
     coobject() = default;
+    coobject(coobject&& rhs) noexcept;
+
+    coobject& operator = (coobject&& rhs) noexcept;
 
     CoType type() const;
     std::string guid() const;
@@ -39,7 +42,9 @@ class coclass : public coobject
 {
 public:
     coclass() = delete;
-    coclass(const coobject& rhs);
+    coclass(coobject&& rhs);
+
+    coclass& operator = (coobject&& rhs);
 
     coclass(const std::wstring& clsID,
             const std::wstring& appID = L"",

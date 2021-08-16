@@ -4,6 +4,17 @@
 
 using namespace flatbuffers;
 
+coobject::coobject(coobject&& rhs) noexcept
+    : m_builder(std::move(rhs.m_builder))
+{
+}
+
+coobject& coobject::operator=(coobject&& rhs) noexcept
+{
+    m_builder = std::move(rhs.m_builder);
+    return *this;
+}
+
 CoType coobject::type() const
 {
     return buffer().type_type();
@@ -49,54 +60,23 @@ const CoObject& coobject::buffer() const
     return *GetCoObject(m_builder.GetBufferPointer());
 }
 
-coclass::coclass(const coobject& rhs)
+coclass::coclass(coobject&& rhs)
+    : coobject(std::move(rhs))
 {
-    const CoObject& ob = rhs.buffer();
+    if (buffer().type_type() != CoType::CoClass) {
+        throw std::runtime_error("Invalid object.");
+    }
+}
 
-    auto* pClass = ob.type_as<CoClass>();
-    ASSERT(pClass != nullptr);
-
-    Offset<String> guidOffset;
-    auto* pGUID = ob.guid();
-    if (pGUID != nullptr) {
-        guidOffset = m_builder.CreateString(pGUID);
+coclass& coclass::operator=(coobject&& rhs)
+{
+    if (rhs.buffer().type_type() != CoType::CoClass) {
+        throw std::runtime_error("Invalid object.");
     }
 
-    Offset<String> appidOffset;
-    auto* pAppID = pClass->app_id();
-    if (pAppID != nullptr) {
-        appidOffset = m_builder.CreateString(pAppID);
-    }
+    coobject::operator=(std::move(rhs));
 
-    auto* pCatIDs = pClass->cat_ids();
-    Offset<Vector<Offset<String>>> catidsOffset;
-    if (pCatIDs != nullptr) {
-        std::vector<std::string> vCatIDs;
-        for (auto i = 0; i < pCatIDs->size(); ++i) {
-            const auto* catID = pCatIDs->Get(i);
-            vCatIDs.emplace_back(catID->str());
-        }
-        catidsOffset = m_builder.CreateVectorOfStrings(vCatIDs);
-    }
-
-    CoClassBuilder cbuilder(m_builder);
-    if (!appidOffset.IsNull()) {
-        cbuilder.add_app_id(appidOffset);
-    }
-
-    if (!catidsOffset.IsNull()) {
-        cbuilder.add_cat_ids(catidsOffset);
-    }
-
-    auto coclass = cbuilder.Finish().Union();
-
-    CoObjectBuilder builder(m_builder);
-    builder.add_type_type(CoType::CoClass);
-    builder.add_type(coclass);
-    builder.add_guid(guidOffset);
-
-    auto root = builder.Finish();
-    FinishCoObjectBuffer(m_builder, root);
+    return *this;
 }
 
 coclass::coclass(const std::wstring& clsID, const std::wstring& appID,

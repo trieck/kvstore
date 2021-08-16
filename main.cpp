@@ -46,7 +46,7 @@ static void testStore()
         result = store.lookup(key, o);
         ASSERT(result);
 
-        coclass clazz2(o);
+        coclass clazz2(std::move(o));
 
         ASSERT(clazz == clazz2);
     });
