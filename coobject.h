@@ -22,8 +22,9 @@ public:
     template <typename T>
     const T* as() const;
 
-protected:
     const CoObject& buffer() const;
+
+protected:
     flatbuffers::FlatBufferBuilder m_builder;
 };
 
@@ -38,9 +39,12 @@ class coclass : public coobject
 {
 public:
     coclass() = delete;
+    coclass(const coobject& rhs);
+
     coclass(const std::wstring& clsID,
             const std::wstring& appID = L"",
             const wstring_set& catIDs = {});
+
 
     LPCSTR appID() const;
 };
@@ -54,7 +58,7 @@ public:
 };
 
 /////////////////////////////////////////////////////////////////////////////
-class cocat: public coobject
+class cocat : public coobject
 {
 public:
     cocat() = delete;

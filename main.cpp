@@ -45,7 +45,10 @@ static void testStore()
         coobject o;
         result = store.lookup(key, o);
         ASSERT(result);
-        ASSERT(clazz == o);
+
+        coclass clazz2(o);
+
+        ASSERT(clazz == clazz2);
     });
 
     objects.apps([&store](const wstring& appID,
