@@ -7,7 +7,7 @@ BlockIO::~BlockIO()
     close();
 }
 
-void BlockIO::open(LPCWSTR filename, std::ios::openmode mode)
+void BlockIO::open(const char* filename, std::ios::openmode mode)
 {
     close();
     m_stream.open(filename, mode | std::ios::binary);
@@ -86,7 +86,7 @@ void BlockIO::flush()
     m_stream.flush();
 }
 
-std::wstring BlockIO::filename() const
+std::string BlockIO::filename() const
 {
     return m_filename;
 }

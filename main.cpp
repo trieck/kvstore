@@ -1,49 +1,49 @@
 #include "common.h"
-
-#include "coinit.h"
 #include "coobject.h"
 #include "coobjects.h"
-#include "kvstore.h"
+#include "ptable.h"
 #include "timer.h"
 #include "util.h"
 
 using namespace std;
 using namespace utility;
 
-static void printStats(kvstore& store)
+template <typename K, typename V>
+void printStats(persistent_hash_table<K, V>& table)
 {
-    wcout << endl << L"    Index filename: " << store.indexname() << flush << endl;
-
-    cout << "    Index file size: " << comma(store.indexsize()) << " bytes" << flush << endl;
-    cout << "    Hash table size: " << comma(store.tablesize()) << " buckets" << flush << endl;
-    cout << "    Hash table fill count: " << comma(store.fillcount()) << " buckets" << flush << endl;
-    cout << "    Hash table load factor: " << boost::format("%02.2f%%") % store.loadfactor() << flush << endl;
-    cout << "    Longest run: " << comma(store.maxrun()) << " buckets" << flush << endl << endl;
+    cout << endl << "    Index filename: " << table.indexname() << flush << endl;
+    cout << "    Index file size: " << comma(table.indexsize()) << " bytes" << flush << endl;
+    cout << "    Hash table size: " << comma(table.tablesize()) << " buckets" << flush << endl;
+    cout << "    Hash table fill count: " << comma(table.fillcount()) << " buckets" << flush << endl;
+    cout << "    Hash table load factor: " << boost::format("%02.2f%%") % table.loadfactor() << flush << endl;
+    cout << "    Longest run: " << comma(table.maxrun()) << " buckets" << flush << endl << endl;
 }
+
+using namespace std;
 
 static void testStore()
 {
-    kvstore store;
-    store.open(L"d:\\tmp\\coobjects.idx");
+    persistent_hash_table<wstring, coobject> table;
+    table.open("d:\\tmp\\coobjects.idx");
 
     CoObjects objects;
     objects.Construct();
 
-    objects.classes([&store](const wstring& clsID,
+    objects.classes([&table](const wstring& clsID,
                              const wstring& appID,
                              const wstring_set& catIDs)
     {
         coclass clazz(clsID, appID, catIDs);
-
+        
         CString key;
         key.Format(L"CLSID:%s", clsID.c_str());
 
-        auto result = store.insert(key, clazz);
+        auto result = table.insert(static_cast<LPCWSTR>(key), clazz);
         ASSERT(result);
 
         // VERIFY STEP!
         coobject o;
-        result = store.lookup(key, o);
+        result = table.lookup(static_cast<LPCWSTR>(key), o);
         ASSERT(result);
 
         coclass clazz2(std::move(o));
@@ -51,7 +51,7 @@ static void testStore()
         ASSERT(clazz == clazz2);
     });
 
-    objects.apps([&store](const wstring& appID,
+    objects.apps([&table](const wstring& appID,
                           const wstring_set& clsIDs)
     {
         coapp app(appID, clsIDs);
@@ -59,17 +59,20 @@ static void testStore()
         CString key;
         key.Format(L"APPID:%s", appID.c_str());
 
-        auto result = store.insert(key, app);
+        auto result = table.insert(static_cast<LPCWSTR>(key), app);
         ASSERT(result);
 
         // VERIFY STEP!
         coobject o;
-        result = store.lookup(key, o);
+        result = table.lookup(static_cast<LPCWSTR>(key), o);
         ASSERT(result);
-        ASSERT(app == o);
+
+        coapp app2(std::move(o));
+
+        ASSERT(app == app2);
     });
 
-    objects.cats([&store](const wstring& catID,
+    objects.cats([&table](const wstring& catID,
                           const wstring_set& clsIDs)
     {
         cocat cat(catID, clsIDs);
@@ -77,44 +80,27 @@ static void testStore()
         CString key;
         key.Format(L"CATID:%s", catID.c_str());
 
-        auto result = store.insert(key, cat);
+        auto result = table.insert(static_cast<LPCWSTR>(key), cat);
         ASSERT(result);
 
         // VERIFY STEP!
         coobject o;
-        result = store.lookup(key, o);
+        result = table.lookup(static_cast<LPCWSTR>(key), o);
         ASSERT(result);
-        ASSERT(cat == o);
+
+        cocat cat2(std::move(o));
+
+        ASSERT(cat == cat2);
     });
 
-    auto key = L"CLSID:{60F75E71-0039-11D1-B1C9-000000000000}";
+    printStats(table);
 
-    coclass clazz(key);
-    auto result = store.insert(key, clazz);
-    ASSERT(!result); // already there
-
-    coobject object;
-    result = store.lookup(key, object);
-    ASSERT(result);
-
-    key = L"APPID:{79426537-5AA0-4D44-A2F4-999B148AE0AD}";
-    coapp app(key);
-
-    result = store.insert(key, app);
-    ASSERT(!result); // already there
-
-    result = store.lookup(key, object);
-    ASSERT(result);
-
-    printStats(store);
-
-    store.close();
+    table.close();
 }
 
 int main()
 {
     Timer timer;
-    CoInit init;
 
     try {
         testStore();

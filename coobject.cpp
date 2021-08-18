@@ -46,7 +46,16 @@ uint32_t coobject::size() const
     return m_builder.GetSize();
 }
 
-bool coobject::operator==(const IValue& rhs)
+void coobject::assign(std::vector<uint8_t>::const_iterator begin,
+                      std::vector<uint8_t>::const_iterator end)
+{
+    auto size = std::distance(begin, end);
+
+    m_builder.Reset();
+    m_builder.PushFlatBuffer(&*begin, size);
+}
+
+bool coobject::operator==(const coobject& rhs)
 {
     if (size() != rhs.size()) {
         return false;
@@ -64,14 +73,14 @@ coclass::coclass(coobject&& rhs)
     : coobject(std::move(rhs))
 {
     if (buffer().type_type() != CoType::CoClass) {
-        throw std::runtime_error("Invalid object.");
+        throw std::runtime_error("Invalid object type.");
     }
 }
 
 coclass& coclass::operator=(coobject&& rhs)
 {
     if (rhs.buffer().type_type() != CoType::CoClass) {
-        throw std::runtime_error("Invalid object.");
+        throw std::runtime_error("Invalid object type.");
     }
 
     coobject::operator=(std::move(rhs));
@@ -134,6 +143,24 @@ LPCSTR coclass::appID() const
     return pAppID->c_str();
 }
 
+coapp::coapp(coobject&& rhs) : coobject(std::move(rhs))
+{
+    if (buffer().type_type() != CoType::CoApp) {
+        throw std::runtime_error("Invalid object type.");
+    }
+}
+
+coapp& coapp::operator=(coobject&& rhs)
+{
+    if (rhs.buffer().type_type() != CoType::CoApp) {
+        throw std::runtime_error("Invalid object type.");
+    }
+
+    coobject::operator=(std::move(rhs));
+
+    return *this;
+}
+
 coapp::coapp(const std::wstring& appID, const wstring_set& clsIDs)
 {
     auto sAppID = utf8str(appID);
@@ -162,6 +189,24 @@ coapp::coapp(const std::wstring& appID, const wstring_set& clsIDs)
 
     auto root = builder.Finish();
     FinishCoObjectBuffer(m_builder, root);
+}
+
+cocat::cocat(coobject&& rhs) : coobject(std::move(rhs))
+{
+    if (buffer().type_type() != CoType::CoCategory) {
+        throw std::runtime_error("Invalid object type.");
+    }
+}
+
+cocat& cocat::operator=(coobject&& rhs)
+{
+    if (rhs.buffer().type_type() != CoType::CoCategory) {
+        throw std::runtime_error("Invalid object type.");
+    }
+
+    coobject::operator=(std::move(rhs));
+
+    return *this;
 }
 
 cocat::cocat(const std::wstring& catID, const wstring_set& clsIDs)

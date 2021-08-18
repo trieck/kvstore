@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="kvstore.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="kvstorelib.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -33,19 +30,7 @@
     <ClInclude Include="wexcept.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="randperm.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="repo.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="sha1.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="fnvhash64.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="value.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="timer.h">
@@ -54,14 +39,14 @@
     <ClInclude Include="util.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="coinit.h">
+    <ClInclude Include="ptable.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="repo.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="kvstore.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="utf8str.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -72,15 +57,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="primes.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="randperm.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="repo.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="sha1.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="timer.cpp">

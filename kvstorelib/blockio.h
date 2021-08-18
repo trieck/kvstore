@@ -6,12 +6,12 @@ public:
     BlockIO() = default;
     ~BlockIO();
 
-    std::wstring filename() const;
+    std::string filename() const;
     uint64_t fileSize();
     uint64_t tell();
     void close();
     void flush();
-    void open(LPCWSTR filename, std::ios::openmode mode);
+    void open(const char* filename, std::ios::openmode mode);
     void readblock(uint64_t blockno, void* pv);
     void seekblock(uint64_t blockno);
     void unlink();
@@ -22,6 +22,6 @@ public:
 
     using Block = std::array<char, BLOCK_SIZE>;
 private:
-    std::wstring m_filename;
+    std::string m_filename;
     std::fstream m_stream;
 };
