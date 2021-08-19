@@ -17,11 +17,11 @@
 #define IS_DELETED(p, b)        ((p)->buckets[b].flags & BF_DELETED)
 #define SET_DELETED(p, b)       ((p)->buckets[b].flags |= BF_DELETED)
 #define BUCKET(p, b)            ((p)->buckets[b])
-#define BUCKET_KEYL(p, b)       ((p)->buckets[b].length)
+#define BUCKET_KEYSIZE(p, b)    ((p)->buckets[b].size)
 #define BUCKET_KEY(p, b)        (&(p)->buckets[b].key)
 #define BUCKET_DATUM(p, b)      ((p)->buckets[b].datum)
 
-template <typename K, typename V, size_t max_key_length = 128>
+template <typename K, typename V, size_t max_key_size = 128>
 class persistent_hash_table
 {
 public:
@@ -141,7 +141,7 @@ public:
         for (; ;) {
             if (IS_FILLED(ppage, bucket)) {
                 auto pbucket = &BUCKET(ppage, bucket);
-                maxrun = std::max(maxrun, runLength(ppage2, pbucket->key, pbucket->length));
+                maxrun = std::max(maxrun, run_length(ppage2, pbucket->key, pbucket->size));
             }
 
             if ((bucket = ((bucket + 1) % BUCKETS_PER_PAGE)) == 0) {
@@ -157,6 +157,34 @@ public:
         return maxrun;
     }
 
+    void iterate(const std::function<void(const K& key, const V& value)>& fn)
+    {
+        uint64_t pageno = 0, bucket = 0;
+
+        auto ppage = page();
+
+        m_index.readblock(pageno, ppage);
+
+        for (;;) {
+            if (IS_FILLED(ppage, bucket)) {
+                auto pbucket = &BUCKET(ppage, bucket);
+                K key(key_ptr(pbucket->key), key_length(pbucket->size));
+                V value;
+                m_repo.readVal(pbucket->datum, value);
+
+                fn(key, value);
+            }
+
+            if ((bucket = ((bucket + 1) % BUCKETS_PER_PAGE)) == 0) {
+                // next page
+                if ((pageno = ((pageno + 1) % m_nbpages)) == 0) {
+                    break; // wrapped
+                }
+
+                m_index.readblock(pageno, ppage);
+            }
+        }
+    }
 
 private:
 #pragma pack (push, 1)
@@ -165,8 +193,8 @@ private:
     {
         uint32_t flags; // bucket flags
         uint64_t datum; // offset to datum
-        uint16_t length; // key length
-        uint8_t key[max_key_length]; // key
+        uint16_t size; // key size
+        uint8_t key[max_key_size]; // key
     }* LPBUCKET;
 
     static_assert(sizeof(Bucket) < BlockIO::BLOCK_SIZE);
@@ -181,15 +209,27 @@ private:
     static constexpr auto BUCKETS_PER_PAGE = BlockIO::BLOCK_SIZE / sizeof(Bucket);
     static_assert(BUCKETS_PER_PAGE >= 1);
 
+    using key_char_type = typename K::traits_type::char_type;
+
     size_t hash(const void* pkey, size_t keyLength) const
     {
         auto h = fnvhash64(pkey, keyLength) % m_tablesize;
         return h;
     }
 
+    const key_char_type* key_ptr(void* pkey) const
+    {
+        return static_cast<const key_char_type*>(pkey);
+    }
+
     size_t key_size(const K& key) const
     {
-        return key.size() * sizeof(typename K::traits_type::char_type);
+        return key.size() * sizeof(key_char_type);
+    }
+
+    size_t key_length(uint16_t size) const
+    {
+        return size / sizeof(key_char_type);
     }
 
     size_t hash(const K& key) const
@@ -223,7 +263,7 @@ private:
                 auto pbucket = &BUCKET(ppage, bucket);
                 uint64_t newpage = -1, newbucket = -1;
 
-                if (!find_slot(ppage2, pbucket->key, pbucket->length, newpage, newbucket)) {
+                if (!find_slot(ppage2, pbucket->key, pbucket->size, newpage, newbucket)) {
                     if (!(newpage == pageno && newbucket == bucket)) {
                         throw std::runtime_error("table full.");
                     }
@@ -254,10 +294,10 @@ private:
         }
     }
 
-    bool is_bucket_key(LPPAGE ppage, uint64_t bucket, const void* pkey, size_t length) const
+    bool is_bucket_key(LPPAGE ppage, uint64_t bucket, const void* pkey, size_t sz) const
     {
-        size_t keyLength = BUCKET_KEYL(ppage, bucket);
-        auto size = std::min(keyLength, std::min(max_key_length, length));
+        size_t keySize = BUCKET_KEYSIZE(ppage, bucket);
+        auto size = std::min(keySize, std::min(max_key_size, sz));
         auto* pbucket_key = BUCKET_KEY(ppage, bucket);
 
         return memcmp(pbucket_key, pkey, size) == 0;
@@ -270,8 +310,8 @@ private:
 
     void set_key(LPPAGE ppage, uint64_t bucket, const K& key) const
     {
-        auto size = std::min(max_key_length, key_size(key));
-        BUCKET_KEYL(ppage, bucket) = static_cast<uint16_t>(size);
+        auto size = std::min(max_key_size, key_size(key));
+        BUCKET_KEYSIZE(ppage, bucket) = static_cast<uint16_t>(size);
 
         auto* pbucket_key = BUCKET_KEY(ppage, bucket);
         memcpy(pbucket_key, key.data(), size);
@@ -361,7 +401,7 @@ private:
         return reinterpret_cast<LPPAGE>(m_block.data());
     }
 
-    uint64_t runLength(LPPAGE ppage, const void* pkey, size_t length)
+    uint64_t run_length(LPPAGE ppage, const void* pkey, size_t length)
     {
         auto h = hash(pkey, length);
         auto pageno = h / BUCKETS_PER_PAGE;

@@ -19,8 +19,6 @@ void printStats(persistent_hash_table<K, V>& table)
     cout << "    Longest run: " << comma(table.maxrun()) << " buckets" << flush << endl << endl;
 }
 
-using namespace std;
-
 static void testStore()
 {
     persistent_hash_table<wstring, coobject> table;
@@ -34,7 +32,7 @@ static void testStore()
                              const wstring_set& catIDs)
     {
         coclass clazz(clsID, appID, catIDs);
-        
+
         CString key;
         key.Format(L"CLSID:%s", clsID.c_str());
 
@@ -91,6 +89,11 @@ static void testStore()
         cocat cat2(std::move(o));
 
         ASSERT(cat == cat2);
+    });
+
+    table.iterate([](const wstring& key, const coobject& value)
+    {
+        wcout << key << std::endl << std::flush;
     });
 
     printStats(table);
