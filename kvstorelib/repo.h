@@ -1,5 +1,5 @@
 #pragma once
-#include "blockio.h"
+#include "blockstrm.h"
 
 // ensure one byte alignment for structures below
 #pragma pack (push, 1)
@@ -36,7 +36,7 @@ using LPCDATAPAGE = const DataPage*;
 #define DATUM_LENGTH(p, d)          ((p)->data[d].header.length)
 #define DATUM_PTR(p, d)             ((p)->data[d].data)
 
-auto constexpr DATUM_PER_PAGE = BlockIO::BLOCK_SIZE / sizeof(Datum);
+auto constexpr DATUM_PER_PAGE = BlockStream::BLOCK_SIZE / sizeof(Datum);
 
 template <typename V>
 class repository
@@ -44,7 +44,7 @@ class repository
 public:
     void close()
     {
-        m_io.close();
+        m_stream.close();
     }
 
     void insert(const V& value, uint64_t& offset)
@@ -52,20 +52,23 @@ public:
         writeValue(reinterpret_cast<const uint8_t*>(value.data()), value.size(), value.size(), offset);
     }
 
-    void open(const char* filename)
+    void create(LPSTORAGE pStorage, LPCWSTR streamName)
     {
-        m_filename = filename;
-        m_io.open(filename, std::ios::in | std::ios::out | std::ios::trunc);
-        m_io.writeblock(m_pageno, m_page.data());
+        ATLASSERT(pStorage != nullptr);
+        ATLASSERT(streamName != nullptr);
+
+        close();
+
+        m_stream.create(pStorage, streamName);
     }
 
     void readVal(uint64_t offset, V& value)
     {
-        uint64_t pageno = offset / BlockIO::BLOCK_SIZE;
-        uint64_t datum = (offset - pageno * BlockIO::BLOCK_SIZE) / sizeof(Datum);
+        uint64_t pageno = offset / BlockStream::BLOCK_SIZE;
+        uint64_t datum = (offset - pageno * BlockStream::BLOCK_SIZE) / sizeof(Datum);
 
         auto ppage = reinterpret_cast<LPDATAPAGE>(m_page.data());
-        m_io.readblock(pageno, ppage);
+        m_stream.readblock(pageno, ppage);
 
         auto totalLen = DATUM_TOTAL_LENGTH(ppage, datum);
 
@@ -84,26 +87,21 @@ public:
             if ((offset = DATUM_NEXT(ppage, datum)) == 0)
                 break;
 
-            pageno = offset / BlockIO::BLOCK_SIZE;
-            datum = (offset - pageno * BlockIO::BLOCK_SIZE) / sizeof(Datum);
-            m_io.readblock(pageno, ppage);
+            pageno = offset / BlockStream::BLOCK_SIZE;
+            datum = (offset - pageno * BlockStream::BLOCK_SIZE) / sizeof(Datum);
+            m_stream.readblock(pageno, ppage);
         }
 
         value.assign(buffer.begin(), buffer.end());
     }
-
-    void unlink()
-    {
-        m_io.unlink();
-    }
-
+    
 private:
     void newpage()
     {
         auto ppage = reinterpret_cast<LPDATAPAGE>(m_page.data());
 
-        memset(ppage, 0, BlockIO::BLOCK_SIZE);
-        m_io.writeblock(++m_pageno, ppage);
+        memset(ppage, 0, BlockStream::BLOCK_SIZE);
+        m_stream.writeblock(++m_pageno, ppage);
     }
 
     uint64_t datumoffset() const
@@ -113,7 +111,7 @@ private:
 
     uint64_t datumoffset(uint64_t pageno, uint8_t datum) const
     {
-        return (pageno * BlockIO::BLOCK_SIZE) + (datum * sizeof(Datum));
+        return (pageno * BlockStream::BLOCK_SIZE) + (datum * sizeof(Datum));
     }
 
     uint64_t nextdatumoffset() const
@@ -132,7 +130,7 @@ private:
     {
         if ((m_datum = static_cast<uint8_t>((m_datum + 1) % DATUM_PER_PAGE)) == 0) {
             auto ppage = reinterpret_cast<LPCDATAPAGE>(m_page.data());
-            m_io.writeblock(m_pageno, ppage);
+            m_stream.writeblock(m_pageno, ppage);
             newpage();
         }
     }
@@ -143,7 +141,7 @@ private:
 
         auto ppage = reinterpret_cast<LPDATAPAGE>(m_page.data());
 
-        m_io.readblock(m_pageno, ppage);
+        m_stream.readblock(m_pageno, ppage);
 
         constexpr auto avail = static_cast<uint32_t>(sizeof(Datum::data));
 
@@ -166,14 +164,13 @@ private:
             length -= written;
         }
 
-        m_io.writeblock(m_pageno, ppage);
+        m_stream.writeblock(m_pageno, ppage);
 
         newdatum();
     }
 
-    BlockIO m_io; // block i/o
+    BlockStream m_stream; // block stream
     uint64_t m_pageno = 0; // current data page while writing
     uint8_t m_datum = 0; // current datum on data page while writing
-    BlockIO::Block m_page{}; // disk page
-    std::string m_filename; // file name
+    BlockStream::Block m_page{}; // disk page
 };

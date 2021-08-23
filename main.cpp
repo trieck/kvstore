@@ -1,4 +1,5 @@
 #include "common.h"
+#include "coinit.h"
 #include "coobject.h"
 #include "coobjects.h"
 #include "ptable.h"
@@ -11,8 +12,7 @@ using namespace utility;
 template <typename K, typename V>
 void printStats(persistent_hash_table<K, V>& table)
 {
-    cout << endl << "    Index filename: " << table.indexname() << flush << endl;
-    cout << "    Index file size: " << comma(table.indexsize()) << " bytes" << flush << endl;
+    wcout << endl << L"    Filename: " << table.filename() << flush << endl;
     cout << "    Hash table size: " << comma(table.tablesize()) << " buckets" << flush << endl;
     cout << "    Hash table fill count: " << comma(table.fillcount()) << " buckets" << flush << endl;
     cout << "    Hash table load factor: " << boost::format("%02.2f%%") % table.loadfactor() << flush << endl;
@@ -22,7 +22,7 @@ void printStats(persistent_hash_table<K, V>& table)
 static void testStore()
 {
     persistent_hash_table<wstring, coobject> table;
-    table.open("d:\\tmp\\coobjects.idx");
+    table.create(L"d:\\tmp\\table.idx");
 
     CoObjects objects;
     objects.Construct();
@@ -103,10 +103,14 @@ static void testStore()
 
 int main()
 {
+    CoInit init;
     Timer timer;
 
     try {
         testStore();
+    } catch (const _com_error& e) {
+        wcerr << e.ErrorMessage() << endl;
+        return 1;
     } catch (const exception& e) {
         cerr << e.what() << endl;
         return 1;

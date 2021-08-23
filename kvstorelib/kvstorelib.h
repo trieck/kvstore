@@ -13,6 +13,10 @@
 #define ASSERT _ASSERT
 #endif // ASSERT
 
+#include <comdef.h>
+#include <comutil.h>
+#include <atlcomcli.h>
+
 #include <boost/config/compiler/visualc.hpp>
 #include <boost/format.hpp>
 

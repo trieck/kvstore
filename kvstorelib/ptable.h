@@ -1,9 +1,10 @@
 #pragma once
 
-#include "blockio.h"
+#include "blockstrm.h"
 #include "fnvhash64.h"
 #include "primes.h"
 #include "repo.h"
+#include "storage.h"
 
 // bucket flags                 
 #define BF_FILLED               (1 << 0)
@@ -28,6 +29,11 @@ public:
     ~persistent_hash_table()
     {
         close();
+    }
+
+    std::wstring filename() const
+    {
+        return m_storage.filename();
     }
 
     bool insert(const K& key, const V& value)
@@ -78,30 +84,28 @@ public:
         return true;
     }
 
-    void open(const char* idxfile, uint32_t entries = 10000)
+    void create(LPCWSTR filename, uint32_t entries = 10000)
     {
-        close();
-
         m_entries = entries;
-        m_idxfile = idxfile;
 
-        maketable();
+        close();
+        m_storage.create(filename);
 
-        std::filesystem::path repopath(m_idxfile);
-        repopath.replace_extension("dat");
+        makeindex();
 
-        m_repo.open(repopath.string().c_str());
+        m_repo.create(m_storage, L"repository");
     }
 
     void close()
     {
         m_index.close();
         m_repo.close();
+        m_storage.close();
     }
 
-    uint64_t indexsize()
+    uint64_t storagesize()
     {
-        return m_index.fileSize();
+        return m_storage.size();
     }
 
     uint64_t tablesize() const
@@ -123,15 +127,10 @@ public:
         return 100 * (static_cast<float>(m_fillcount) / static_cast<float>(m_tablesize));
     }
 
-    std::string indexname() const
-    {
-        return m_idxfile;
-    }
-
     uint64_t maxrun()
     {
         uint64_t maxrun = 0, bucket = 0, pageno = 0;
-        BlockIO::Block block{};
+        BlockStream::Block block{};
 
         auto ppage = page();
         auto ppage2 = reinterpret_cast<LPPAGE>(block.data());
@@ -191,13 +190,13 @@ private:
     // hash table bucket
     typedef struct Bucket
     {
-        uint32_t flags; // bucket flags
-        uint64_t datum; // offset to datum
-        uint16_t size; // key size
+        uint32_t flags;            // bucket flags
+        uint64_t datum;            // offset to datum
+        uint16_t size;             // key size
         uint8_t key[max_key_size]; // key
     }* LPBUCKET;
 
-    static_assert(sizeof(Bucket) < BlockIO::BLOCK_SIZE);
+    static_assert(sizeof(Bucket) < BlockStream::BLOCK_SIZE);
 
     // hash table page
     typedef struct Page
@@ -206,7 +205,7 @@ private:
     }* LPPAGE;
 
 #pragma pack (pop)
-    static constexpr auto BUCKETS_PER_PAGE = BlockIO::BLOCK_SIZE / sizeof(Bucket);
+    static constexpr auto BUCKETS_PER_PAGE = BlockStream::BLOCK_SIZE / sizeof(Bucket);
     static_assert(BUCKETS_PER_PAGE >= 1);
 
     using key_char_type = typename K::traits_type::char_type;
@@ -248,11 +247,11 @@ private:
 
         auto noldpages = m_nbpages;
         m_entries = m_entries * 2;
-        maketable(false);
+        makeindex(false);
 
         auto ppage = page();
 
-        BlockIO::Block page2{};
+        BlockStream::Block page2{};
         auto ppage2 = reinterpret_cast<LPPAGE>(page2.data());
 
         uint64_t bucket = 0, pageno = 0;
@@ -384,13 +383,15 @@ private:
         }
     }
 
-    void maketable(bool create = true)
+    void makeindex(bool create = true)
     {
+        ATLASSERT(m_storage.isOpen());
+
         m_tablesize = Primes::prime(m_entries);
         m_nbpages = (m_tablesize / BUCKETS_PER_PAGE) + 1;
 
         if (create) {
-            m_index.open(m_idxfile.c_str(), std::ios::in | std::ios::out | std::ios::trunc);
+            m_index.create(m_storage, L"index");
         }
 
         m_index.resize(m_nbpages);
@@ -426,10 +427,11 @@ private:
 
     uint64_t m_tablesize = 0; // table size (prime)
     uint64_t m_fillcount = 0; // fill count
-    uint64_t m_nbpages = 0; // number of bucket pages
-    uint32_t m_entries = 0; // number of entries requested
-    BlockIO m_index; // index block i/o
-    BlockIO::Block m_block{}; // disk page
-    std::string m_idxfile; // indexfile
-    repository<V> m_repo; // value repository
+    uint64_t m_nbpages = 0;   // number of bucket pages
+    uint32_t m_entries = 0;   // number of entries requested
+
+    Storage m_storage;            // structured storage
+    BlockStream m_index;          // index block stream
+    BlockStream::Block m_block{}; // disk page
+    repository<V> m_repo;         // value repository
 };

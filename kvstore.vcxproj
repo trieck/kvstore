@@ -81,6 +81,7 @@
   <ItemGroup>
     <ClInclude Include="coapps.h" />
     <ClInclude Include="cocats.h" />
+    <ClInclude Include="coinit.h" />
     <ClInclude Include="coobjects.h" />
     <ClInclude Include="coifaces.h" />
     <ClInclude Include="coobject.h" />
